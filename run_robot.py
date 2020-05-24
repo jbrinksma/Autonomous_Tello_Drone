@@ -19,10 +19,15 @@ ESC_KEY = 27
 NO_KEY = -1
 
 # velocity for when drone is yawing to discover surroundings
-SCAN_VELOCITY = 100  # (10-100)
+SCAN_VELOCITY = 50  # (10-100)
 
 
 TIME_BTW_BATTERY_CHECKS = 0.5  # seconds
+
+
+cv2.namedWindow("TelloView")
+cv2.createTrackbar("Threshold1", "TelloView", 150, 255, lambda: None)
+cv2.createTrackbar("Threshold2", "TelloView", 255, 255, lambda: None)
 
 
 class TelloDrone():
@@ -67,7 +72,6 @@ class TelloDrone():
             self.battery_level = self.tello.get_battery()
             self.last_battery_check = time.time()
         
-
     def update_drone_velocities_if_flying(self):
         """Move drone based on velocities only if drone is flying"""
         if not self.tello.is_flying:
@@ -159,9 +163,17 @@ class TelloDrone():
             if frame_read.stopped:
                 frame_read.stop()
                 break
-            frame = cv2.cvtColor(frame_read.frame, cv2.COLOR_BGR2RGB)
             frame_ret = frame_read.frame
-            tello_cam = self.tello.get_video_capture()
+
+            # frame = cv2.cvtColor(frame_ret, cv2.COLOR_BGR2RGB)
+            # tello_cam = self.tello.get_video_capture()
+            blurred = cv2.GaussianBlur(frame_ret, (7, 7), 1)
+            grey_blur = cv2.cvtColor(blurred, cv2.COLOR_BGR2GRAY)
+
+            threshold1 = cv2.getTrackbarPos("Threshold1", "TelloView")
+            threshold2 = cv2.getTrackbarPos("Threshold2", "TelloView") 
+            canny = cv2.Canny(grey_blur, threshold1, threshold2)
+
             time.sleep(1 / FPS)
             
             key_pressed = self.handle_user_keypress()
@@ -171,7 +183,7 @@ class TelloDrone():
             # Show battery level 
             self.update_battery_level()
             cv2.putText(frame_ret,f"Battery: {self.battery_level}%",(32,664),cv2.FONT_HERSHEY_SIMPLEX,1,(0, 0, 255), thickness=2)
-            cv2.imshow(f'Tello Tracking...', frame_ret)
+            cv2.imshow(f'TelloView', canny)
 
         self.cleanup()  # Clean exit
 
